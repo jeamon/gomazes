@@ -18,6 +18,8 @@ Have fun time with kids and family and friends at playing awesome 2D maze-based 
 * use keyboard (CTRL+C) to close immediately the whole game
 * timer to view the time elapsed since the maze get displayed
 * view in real-time the exact coordinates of your position
+* view in real-time the game status (pause or ready or loading)
+* use keyboard (ESC) to quit the maze and SPACE to pause/resume
 
 ## Installation
 
