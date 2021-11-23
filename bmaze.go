@@ -8,11 +8,9 @@ package main
 // Created  : 22 November 2021
 
 import (
-	//	"fmt"
 	"math/rand"
 	"strings"
 	"time"
-	//	"github.com/jroimartin/gocui"
 )
 
 // assign the 4 directions code to powers of 2.
