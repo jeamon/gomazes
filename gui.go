@@ -476,9 +476,7 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 		pauseGame <- 3
 	}
 
-	// display the rat at the entrance.
 	g.Cursor = true
-	mazeView.EditWrite('♣')
 	v.Frame = false
 
 	// update status and position.
@@ -688,7 +686,6 @@ func resetGame(g *gocui.Gui, mv *gocui.View) error {
 		return err
 	}
 
-	mv.EditWrite('♣')
 	cx, cy := mv.Cursor()
 	cursorPosition <- fmt.Sprintf("(X:%d | Y:%d)", cx, cy)
 	return nil

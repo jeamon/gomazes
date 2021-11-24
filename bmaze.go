@@ -162,9 +162,8 @@ func formatMaze(maze *[][]int, width, height int) strings.Builder {
 	// display first horizontal line. We use 2 underscores since
 	// one will stay above vertical wall (East/West)
 	// we fix entrance cell position at top center.
-	topLine := " " + strings.Repeat("_", (width*2-2)) + " "
-	topLine = topLine[:width] + "  " + topLine[(width+1):]
-	// fmt.Fprintln(v, topLine)
+	topLine := " " + strings.Repeat("_", (width*2-3)) + " "
+	topLine = topLine[:width] + "   " + topLine[(width+1):]
 	mazeFormat.WriteString(topLine)
 	mazeFormat.WriteString("\n")
 
