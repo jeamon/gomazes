@@ -139,7 +139,7 @@ func main() {
 		return
 	}
 	positionView.Title = " Position "
-	positionView.FgColor = gocui.ColorYellow
+	positionView.FgColor = gocui.ColorGreen
 	positionView.SelBgColor = gocui.ColorBlack
 	positionView.SelFgColor = gocui.ColorYellow
 	positionView.Editable = false
@@ -187,7 +187,7 @@ func main() {
 	go updateTimerView(g)
 
 	wg.Add(1)
-	go updatePositionView(g)
+	go updatePositionView(g, PWIDTH-TWIDTH-1)
 
 	wg.Add(1)
 	go updateStatusView(g)
@@ -352,8 +352,13 @@ func updateTimerView(g *gocui.Gui) {
 	}
 }
 
+// centers a given string within a width by padding.
+func center(s string, width int, fill string) string {
+	return strings.Repeat(fill, (width-len(s))/2) + s + strings.Repeat(fill, (width-len(s))/2)
+}
+
 // updatePositionView displays current cursor coordinates.
-func updatePositionView(g *gocui.Gui) {
+func updatePositionView(g *gocui.Gui, pwidth int) {
 	defer wg.Done()
 	var pos string
 	positionView, err := g.View(POSITION)
@@ -373,7 +378,8 @@ func updatePositionView(g *gocui.Gui) {
 
 			g.Update(func(g *gocui.Gui) error {
 				positionView.Clear()
-				fmt.Fprintf(positionView, pos)
+				fmt.Fprint(positionView, center(pos, pwidth, " "))
+				log.Println(center(pos, pwidth, " "))
 				return nil
 			})
 		}
@@ -430,7 +436,6 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 	// maze view ending coordinates.
 	mx2 := mx1 + (2*MAZEWIDTH + 2)
 	my2 := my1 + (MAZEHEIGHT + 2)
-	// log.Println(vx, vy, MAZEWIDTH, MAZEHEIGHT)
 
 	const name = "mazeView"
 	mazeView, err := g.SetView(name, mx1, my1, mx2, my2)
