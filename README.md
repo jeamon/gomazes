@@ -2,6 +2,8 @@
 
 Have fun time with kids and family and friends at playing awesome 2D maze-based games while feeling like a programmer on the computer console/terminal. Enjoy.
 
+Have a taste of the preview on my youtube channel. [click here](https://youtu.be/ZkUj3ya-hw0)
+
 ![overview of maze](https://github.com/jeamon/gomazes/blob/master/maze-demo-01.PNG?raw=true)
 
 ## Features / Goals
@@ -16,9 +18,11 @@ Have fun time with kids and family and friends at playing awesome 2D maze-based 
 * use keyboard (CTRL+S) to save the current maze challenge
 * use keyboard (CTRL+L) to load any past saved maze challenge
 * use keyboard (CTRL+C) to close immediately the whole game
+* use keyboard (CTRL+H) to display or close the help details
 * timer to view the time elapsed since the maze get displayed
 * view in real-time the exact coordinates of your position
 * view in real-time the game status (pause or ready or loading)
+* replay the same maze by moving back the cursor to entrance
 * use keyboard (ESC) to quit the maze and SPACE to pause/resume
 
 ## Installation
@@ -63,4 +67,4 @@ Please check & read [the license details](https://github.com/jeamon/gomazes/blob
 ## Contact
 ---
 
-Feel free to [reach out to me](https://blog.cloudmentor-scale.com/contact) before any action. Feel free to connect on [Twitter](https://twitter.com/jerome_amon)
+Feel free to [reach out to me](https://blog.cloudmentor-scale.com/contact) before any action. Feel free to connect on [Twitter](https://twitter.com/jerome_amon) or [linkedin](https://www.linkedin.com/in/jeromeamon/)
