@@ -472,11 +472,13 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 	x, _ := mazeView.Size()
 	if err = mazeView.SetCursor(x/2+1, 0); err != nil {
 		log.Println("Failed to set cursor at middle of maze view:", err)
+		// just alert for error during setup.
+		pauseGame <- 3
 	}
 
 	// display the rat at the entrance.
 	g.Cursor = true
-	v.EditWrite('♣')
+	mazeView.EditWrite('♣')
 	v.Frame = false
 
 	// update status and position.
@@ -792,7 +794,7 @@ func noWallOnRight(v *gocui.View) bool {
 		return false
 	}
 
-	if l[cx+1] == '|' {
+	if (cy == 0 && l[cx+1] == '_') || l[cx+1] == '|' {
 		return false
 	}
 
@@ -827,7 +829,7 @@ func noWallOnLeft(v *gocui.View) bool {
 		return false
 	}
 
-	if l[cx-1] == '|' {
+	if (cy == 0 && l[cx-1] == '_') || l[cx-1] == '|' {
 		return false
 	}
 
