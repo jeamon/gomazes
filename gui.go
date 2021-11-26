@@ -22,15 +22,46 @@ import (
 
 const (
 	OUTPUTS  = "outputs"
-	HELP     = "help"
+	INFOS    = "infos"
 	POSITION = "position"
 	TIMER    = "timer"
 	STATUS   = "status"
+	HELP     = "help"
+	MAZE     = "maze"
 
-	TWIDTH = 11
-	PWIDTH = 30
-	SWIDTH = 45
+	TWIDTH  = 11
+	PWIDTH  = 30
+	SWIDTH  = 45
+	HWIDTH  = 44
+	HHEIGHT = 26
 )
+
+const helpDetails = `
+
+-------------+----------------------------
+    CTRL + H | close this help window
+-------------+----------------------------
+    CTRL + N | create a full new maze
+-------------+----------------------------
+    CTRL + Q | quit existing challenge
+-------------+----------------------------
+    CTRL + P | pause current challenge
+-------------+----------------------------
+    CTRL + R | resume from paused game
+-------------+----------------------------
+    CTRL + S | save current game state
+-------------+----------------------------
+    CTRL + L | load a saved game state
+-------------+----------------------------
+    CTRL + F | find & display solution
+-------------+----------------------------
+    ↕ and ↔  | navigate into the maze
+-------------+----------------------------
+    CTRL + C | close the whole program
+-------------+----------------------------
+
+::::::: Craft with ♥ by Jerome Amon ::::::
+`
 
 var (
 	// default maze size.
@@ -43,7 +74,7 @@ var (
 	// control game status. 1 means paused.
 	// 0 means ready to play, 2 means empty.
 	// 3 means error so need to restart game.
-	pauseGame    = make(chan uint8, 3)
+	statusGame   = make(chan uint8, 3)
 	isGamePaused = false
 
 	cursorPosition = make(chan string, 10)
@@ -51,6 +82,9 @@ var (
 	// control goroutines.
 	exit = make(chan struct{})
 	wg   sync.WaitGroup
+
+	// keep latest coordinates of the cursor in maze.
+	latestMazeCursorX, latestMazeCursorY int
 )
 
 func main() {
@@ -159,18 +193,18 @@ func main() {
 	statusView.Wrap = false
 
 	// Help view.
-	helpView, err := g.SetView(HELP, SWIDTH+1, maxY-3, maxX-1, maxY-1)
+	helpView, err := g.SetView(INFOS, SWIDTH+1, maxY-3, maxX-1, maxY-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		log.Println("Failed to create help view:", err)
 		return
 	}
-	helpView.Title = " Instructions "
+	helpView.Title = " Infos "
 	helpView.FgColor = gocui.ColorWhite
 	helpView.SelBgColor = gocui.ColorBlack
 	helpView.SelFgColor = gocui.ColorYellow
 	helpView.Editable = false
 	helpView.Wrap = false
-	fmt.Fprint(helpView, "CTRL+N [New Maze] - CTRL+R [Reset Game] - CTRL+P [Pause/Resume] - CTRL+Q [Close Maze]")
+	fmt.Fprint(helpView, " CTRL+H [Display Help] - CTRL+N [Get New Maze] - CTRL+Q [Close Maze] - CTRL+C [Exit Game]")
 
 	// Apply keybindings to program.
 	if err = keybindings(g); err != nil {
@@ -232,7 +266,7 @@ func layout(g *gocui.Gui) error {
 	}
 
 	// Help view.
-	_, err = g.SetView(HELP, SWIDTH+1, maxY-3, maxX-1, maxY-1)
+	_, err = g.SetView(INFOS, SWIDTH+1, maxY-3, maxX-1, maxY-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		log.Println("Failed to create help view:", err)
 		return err
@@ -256,6 +290,11 @@ func keybindings(g *gocui.Gui) error {
 
 	// navigate between views.
 	if err := g.SetKeybinding("", gocui.KeyTab, gocui.ModNone, nextView); err != nil {
+		return err
+	}
+
+	// display help details.
+	if err := g.SetKeybinding("", gocui.KeyCtrlH, gocui.ModNone, displayHelpView); err != nil {
 		return err
 	}
 
@@ -379,7 +418,6 @@ func updatePositionView(g *gocui.Gui, pwidth int) {
 			g.Update(func(g *gocui.Gui) error {
 				positionView.Clear()
 				fmt.Fprint(positionView, center(pos, pwidth, " "))
-				log.Println(center(pos, pwidth, " "))
 				return nil
 			})
 		}
@@ -391,7 +429,7 @@ func updatePositionView(g *gocui.Gui, pwidth int) {
 // updateStatusView displays current game status.
 func updateStatusView(g *gocui.Gui) {
 	defer wg.Done()
-	var pval uint8
+	var sval uint8
 
 	statusView, err := g.View(STATUS)
 	if err != nil {
@@ -406,15 +444,15 @@ func updateStatusView(g *gocui.Gui) {
 		case <-exit:
 			return
 
-		case pval = <-pauseGame:
+		case sval = <-statusGame:
 
 			g.Update(func(g *gocui.Gui) error {
 				statusView.Clear()
-				if pval == 1 {
+				if sval == 1 {
 					fmt.Fprintf(statusView, ":: PAUSE")
-				} else if pval == 0 {
+				} else if sval == 0 {
 					fmt.Fprintf(statusView, ":: READY")
-				} else if pval == 3 {
+				} else if sval == 3 {
 					fmt.Fprintf(statusView, ":: ERROR")
 				}
 
@@ -437,8 +475,7 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 	mx2 := mx1 + (2*MAZEWIDTH + 2)
 	my2 := my1 + (MAZEHEIGHT + 2)
 
-	const name = "mazeView"
-	mazeView, err := g.SetView(name, mx1, my1, mx2, my2)
+	mazeView, err := g.SetView(MAZE, mx1, my1, mx2, my2)
 	if err != nil && err != gocui.ErrUnknownView {
 		log.Println("Failed to display maze view:", err)
 		return err
@@ -450,16 +487,16 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 	mazeView.SelFgColor = gocui.ColorYellow
 	//inputView.Editable = true
 
-	if _, err = g.SetCurrentView(name); err != nil {
+	if _, err = g.SetCurrentView(MAZE); err != nil {
 		log.Println("Failed to set focus on maze view:", err)
 		return err
 	}
 
-	_, _ = g.SetViewOnTop(name)
+	_, _ = g.SetViewOnTop(MAZE)
 
 	// g.Cursor = true
 
-	if err = mazeKeybindings(g, name); err != nil {
+	if err = mazeKeybindings(g, MAZE); err != nil {
 		log.Println("Failed to bind keys to maze view:", err)
 		return err
 	}
@@ -473,7 +510,7 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 	if err = mazeView.SetCursor(x/2+1, 0); err != nil {
 		log.Println("Failed to set cursor at middle of maze view:", err)
 		// just alert for error during setup.
-		pauseGame <- 3
+		statusGame <- 3
 	}
 
 	g.Cursor = true
@@ -481,7 +518,7 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 
 	// update status and position.
 	isGamePaused = false
-	pauseGame <- 0
+	statusGame <- 0
 	cx, cy := v.Cursor()
 	cursorPosition <- fmt.Sprintf("(X:%d | Y:%d)", cx, cy)
 	return nil
@@ -541,28 +578,29 @@ func closeMazeView(g *gocui.Gui, mv *gocui.View) error {
 		return err
 	}
 
-	if err := setCurrentDefaultView(g); err != nil {
+	if err := setFocusOnView(g, OUTPUTS); err != nil {
 		return err
 	}
 
 	// stop timer and update game status.
 	stopTimer <- struct{}{}
 	isGamePaused = false
-	pauseGame <- 2
+	statusGame <- 2
 
 	return nil
 }
 
-// setCurrentDefaultView moves the focus on default view.
-func setCurrentDefaultView(g *gocui.Gui) error {
+// setFocusOnView moves the focus on a given view. In case,
+// it is the maze view place the cursor to lastest position.
+func setFocusOnView(g *gocui.Gui, name string) error {
 	// move back the focus on the jobs list box.
-	v, err := g.SetCurrentView(OUTPUTS)
+	v, err := g.SetCurrentView(name)
 	if err != nil {
-		log.Println("Failed to set focus on outputs view:", err)
+		log.Printf("Failed to set focus on %s view:", name, err)
 		return err
 	}
+
 	v.Frame = true
-	// g.Cursor = true
 	v.SetCursor(0, 0)
 	return nil
 }
@@ -605,12 +643,12 @@ func nextView(g *gocui.Gui, v *gocui.View) error {
 
 	case STATUS:
 		// move the focus on Help view.
-		if _, err := g.SetCurrentView(HELP); err != nil {
+		if _, err := g.SetCurrentView(INFOS); err != nil {
 			log.Println("Failed to set focus on help view:", err)
 			return err
 		}
 
-	case HELP:
+	case INFOS:
 		// move the focus on Outputs view.
 		if _, err := g.SetCurrentView(OUTPUTS); err != nil {
 			log.Println("Failed to set focus on maze view:", err)
@@ -631,7 +669,7 @@ func pauseResumeGame(g *gocui.Gui, mv *gocui.View) error {
 	isGamePaused = !isGamePaused
 
 	if isGamePaused {
-		pauseGame <- 1
+		statusGame <- 1
 		g.Cursor = false
 		// game paused so disable controls keys bindings.
 		for _, key := range []gocui.Key{gocui.KeyCtrlR, gocui.KeyArrowUp, gocui.KeyArrowDown, gocui.KeyArrowLeft, gocui.KeyArrowRight} {
@@ -644,7 +682,7 @@ func pauseResumeGame(g *gocui.Gui, mv *gocui.View) error {
 		return nil
 	}
 
-	pauseGame <- 0
+	statusGame <- 0
 	g.Cursor = true
 	// game resumed so enable controls keys bindings.
 	if err = g.SetKeybinding(mv.Name(), gocui.KeyCtrlR, gocui.ModNone, resetGame); err != nil {
@@ -678,7 +716,7 @@ func pauseResumeGame(g *gocui.Gui, mv *gocui.View) error {
 // resetGame reinitialize the timer and move to entrance position.
 func resetGame(g *gocui.Gui, mv *gocui.View) error {
 	resetTimer <- struct{}{}
-	pauseGame <- 0
+	statusGame <- 0
 	x, _ := mv.Size()
 	g.Cursor = true
 	if err := mv.SetCursor(x/2+1, 0); err != nil {
@@ -700,7 +738,7 @@ func noWallBelow(v *gocui.View) bool {
 	l, err := v.Line(cy)
 	if err != nil {
 		log.Printf("Failed to check maze bottom direction (%d,%d). err: %v", cx, cy, err)
-		pauseGame <- 3
+		statusGame <- 3
 		return false
 	}
 
@@ -717,7 +755,7 @@ func noWallBelow(v *gocui.View) bool {
 	l, err = v.Line(cy + 1)
 	if err != nil {
 		log.Printf("Failed to check maze bottom direction (%d,%d). err: %v", cx, cy+1, err)
-		pauseGame <- 3
+		statusGame <- 3
 		return false
 	}
 
@@ -752,7 +790,7 @@ func noWallAbove(v *gocui.View) bool {
 	if err != nil {
 		log.Printf("Failed to check maze up direction (%d,%d). err: %v", cx, cy-1, err)
 		// signal/status to quit the program.
-		pauseGame <- 3
+		statusGame <- 3
 		return false
 	}
 
@@ -787,7 +825,7 @@ func noWallOnRight(v *gocui.View) bool {
 	if err != nil {
 		log.Printf("Failed to check maze up direction (%d,%d). err: %v", cx, cy, err)
 		// signal/status to quit the program.
-		pauseGame <- 3
+		statusGame <- 3
 		return false
 	}
 
@@ -822,7 +860,7 @@ func noWallOnLeft(v *gocui.View) bool {
 	l, err := v.Line(cy)
 	if err != nil {
 		log.Printf("Failed to check maze up direction (%d,%d). err: %v", cx, cy, err)
-		pauseGame <- 3
+		statusGame <- 3
 		return false
 	}
 
@@ -840,6 +878,94 @@ func moveLeft(g *gocui.Gui, v *gocui.View) error {
 		v.MoveCursor(-1, 0, false)
 		cx, cy := v.Cursor()
 		cursorPosition <- fmt.Sprintf("(X:%d | Y:%d)", cx, cy)
+	}
+
+	return nil
+}
+
+// displayHelpView displays help details. But save the current
+// cursor position in case the maze is displayed.
+func displayHelpView(g *gocui.Gui, cv *gocui.View) error {
+
+	if cv.Name() == MAZE {
+		latestMazeCursorX, latestMazeCursorY = cv.Cursor()
+	}
+
+	maxX, maxY := g.Size()
+
+	// construct the input box and position at the center of the screen.
+	if helpView, err := g.SetView(HELP, (maxX-HWIDTH)/2, (maxY-HHEIGHT)/2, maxX/2+HWIDTH, (maxY+HHEIGHT)/2); err != nil {
+		if err != gocui.ErrUnknownView {
+			log.Println("Failed to create help view:", err)
+			return err
+		}
+		// helpView.Title = " Help "
+		helpView.FgColor = gocui.ColorGreen
+		helpView.SelBgColor = gocui.ColorBlack
+		helpView.SelFgColor = gocui.ColorYellow
+		helpView.Editable = false
+		helpView.Autoscroll = true
+		helpView.Wrap = true
+		helpView.Frame = false
+
+		if _, err := g.SetCurrentView(HELP); err != nil {
+			log.Println("Failed to set focus on help view:", err)
+			return err
+		}
+		g.Cursor = false
+		helpView.Highlight = true
+
+		// bind Ctrl+Q and Escape keys to close the input box.
+		if err := g.SetKeybinding(HELP, gocui.KeyCtrlQ, gocui.ModNone, closeHelpView); err != nil {
+			log.Println("Failed to bind keys (CtrlQ) to help view:", err)
+			return err
+		}
+
+		if err := g.SetKeybinding(HELP, gocui.KeyCtrlH, gocui.ModNone, closeHelpView); err != nil {
+			log.Println("Failed to bind keys (CtrlH) to help view:", err)
+			return err
+		}
+
+		if err := g.SetKeybinding(HELP, gocui.KeyEsc, gocui.ModNone, closeHelpView); err != nil {
+			log.Println("Failed to bind keys (Esc) to help view:", err)
+			return err
+		}
+
+		fmt.Fprintf(helpView, helpDetails)
+
+	}
+	return nil
+}
+
+// closeHelpView closes help view then move the focus on
+// maze view in case it exists otherwise set it to output view.
+func closeHelpView(g *gocui.Gui, hv *gocui.View) error {
+
+	hv.Clear()
+	g.Cursor = false
+	g.DeleteKeybindings(hv.Name())
+	if err := g.DeleteView(hv.Name()); err != nil {
+		log.Println("Failed to delete help view:", err)
+		return err
+	}
+
+	if _, err := g.View(MAZE); err != gocui.ErrUnknownView {
+		mv, err := g.SetCurrentView(MAZE)
+		if err != nil {
+			log.Printf("Failed to set back focus on maze view:", err)
+			statusGame <- 3
+			return err
+		}
+
+		mv.Frame = false
+		mv.SetCursor(latestMazeCursorX, latestMazeCursorY)
+		g.Cursor = true
+		return nil
+	}
+
+	if err := setFocusOnView(g, OUTPUTS); err != nil {
+		log.Println("Failed to set back focus on outputs view:", err)
+		return err
 	}
 
 	return nil
