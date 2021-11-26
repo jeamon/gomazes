@@ -1,10 +1,10 @@
 # gomazes
 
-Have fun time with kids and family and friends at playing awesome 2D maze-based games while feeling like a programmer on the computer console/terminal. Enjoy.
+Have fun time with kids and family and friends at playing awesome 2D maze-based games while feeling like a programmer on the computer console/terminal. Enjoy as well.
 
-Have a taste of the preview on my youtube channel. [click here](https://youtu.be/ZkUj3ya-hw0)
 
-![overview of maze](https://github.com/jeamon/gomazes/blob/master/maze-demo-01.PNG?raw=true)
+![live minimal maze](https://github.com/jeamon/gomazes/blob/master/gomazes-demo-01.gif?raw=true)
+
 
 ## Features / Goals
 
@@ -24,6 +24,13 @@ Have a taste of the preview on my youtube channel. [click here](https://youtu.be
 * view in real-time the game status (pause or ready or loading)
 * replay the same maze by moving back the cursor to entrance
 * use keyboard (ESC) to quit the maze and SPACE to pause/resume
+
+
+## Demo
+
+Preview on my youtube channel. [click here](https://youtu.be/ZkUj3ya-hw0) or [use this link](https://youtu.be/cirojskoPBw)
+
+![overview of maze](https://github.com/jeamon/gomazes/blob/master/maze-demo-01.PNG?raw=true)
 
 ## Installation
 
