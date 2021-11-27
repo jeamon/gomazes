@@ -165,13 +165,13 @@ func formatMaze(maze *[][]int, width, height int) strings.Builder {
 	topLine := " " + strings.Repeat("_", (width*2-3)) + " "
 	topLine = topLine[:width] + "   " + topLine[(width+1):]
 	mazeFormat.WriteString(topLine)
-	mazeFormat.WriteString("\n")
 
 	var rowFormat strings.Builder
 
 	// loop over each row
 	for y, row := range *maze {
 		// construct each line. Left is a vertical bar.
+		mazeFormat.WriteString("\n")
 		rowFormat.WriteRune('|')
 
 		// loop over each cell value.
@@ -201,13 +201,8 @@ func formatMaze(maze *[][]int, width, height int) strings.Builder {
 			}
 		}
 
-		// draw row and wait for animation.
-		// fmt.Println(rowFormat.String())
 		mazeFormat.WriteString(rowFormat.String())
 		rowFormat.Reset()
-		mazeFormat.WriteString("\n")
-		// rowFormat.Reset()
-		// time.Sleep(time.Duration(200) * time.Millisecond)
 	}
 
 	return mazeFormat
