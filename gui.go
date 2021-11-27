@@ -148,7 +148,7 @@ func main() {
 	outputsView.FgColor = gocui.ColorWhite
 	outputsView.SelBgColor = gocui.ColorGreen
 	outputsView.SelFgColor = gocui.ColorBlack
-	outputsView.Autoscroll = true
+	// outputsView.Autoscroll = true
 	outputsView.Editable = false
 	outputsView.Wrap = false
 
@@ -883,12 +883,22 @@ func moveLeft(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// displayHelpView displays help details. But save the current
-// cursor position in case the maze is displayed.
+// displayHelpView displays help details. But save the current cursor
+// position in case the maze is displayed before. Then pause the game.
 func displayHelpView(g *gocui.Gui, cv *gocui.View) error {
 
 	if cv.Name() == MAZE {
 		latestMazeCursorX, latestMazeCursorY = cv.Cursor()
+
+		// try to pause the game if not yet done. If failure
+		// abort the process and flag status with <ERROR>.
+		if !isGamePaused {
+			if err := pauseResumeGame(g, cv); err != nil {
+				log.Println("Failed to pause the game before displaying help view:", err)
+				statusGame <- 3
+				return err
+			}
+		}
 	}
 
 	maxX, maxY := g.Size()
@@ -959,7 +969,7 @@ func closeHelpView(g *gocui.Gui, hv *gocui.View) error {
 
 		mv.Frame = false
 		mv.SetCursor(latestMazeCursorX, latestMazeCursorY)
-		g.Cursor = true
+		g.Cursor = false
 		return nil
 	}
 
