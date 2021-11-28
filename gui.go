@@ -337,12 +337,10 @@ func displayNewMaze(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-// updateTimerView tracks elapsed time since maze display.
+// updateTimerView tracks elapsed time since maze is displayed.
 func updateTimerView(g *gocui.Gui) {
 	defer wg.Done()
 	stop, reset := true, false
-	// var currentTime time.Time
-	var diff time.Duration
 	secsElapsed, hrs, mins, secs := 0, 0, 0, 0
 
 	timerView, err := g.View(TIMER)
@@ -350,8 +348,6 @@ func updateTimerView(g *gocui.Gui) {
 		log.Println("Failed to get timer view for updating:", err)
 		return
 	}
-
-	startTime := time.Now()
 
 	for {
 
@@ -364,7 +360,7 @@ func updateTimerView(g *gocui.Gui) {
 			stop = !stop
 
 		case <-resetTimer:
-			startTime = time.Now()
+			secsElapsed = 0
 			reset = !reset
 			g.Update(func(g *gocui.Gui) error {
 				timerView.Clear()
@@ -378,8 +374,7 @@ func updateTimerView(g *gocui.Gui) {
 			}
 
 			g.Update(func(g *gocui.Gui) error {
-				diff = time.Now().Sub(startTime)
-				secsElapsed = int(diff.Seconds())
+				secsElapsed++
 				hrs = int(secsElapsed / 3600)
 				mins = int(secsElapsed / 60)
 				secs = int(secsElapsed % 60)
@@ -493,8 +488,6 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 	}
 
 	_, _ = g.SetViewOnTop(MAZE)
-
-	// g.Cursor = true
 
 	if err = mazeKeybindings(g, MAZE); err != nil {
 		log.Println("Failed to bind keys to maze view:", err)
