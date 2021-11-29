@@ -33,13 +33,15 @@ const (
 	PWIDTH  = 30
 	SWIDTH  = 45
 	HWIDTH  = 44
-	HHEIGHT = 26
+	HHEIGHT = 28
 )
 
 const helpDetails = `
 
 -------------+----------------------------
-    CTRL + H | close this help window
+    CTRL + D | close this help window
+-------------+----------------------------
+    CTRL + E | edit maze width/height
 -------------+----------------------------
     CTRL + N | create a full new maze
 -------------+----------------------------
@@ -148,7 +150,6 @@ func main() {
 	outputsView.FgColor = gocui.ColorWhite
 	outputsView.SelBgColor = gocui.ColorGreen
 	outputsView.SelFgColor = gocui.ColorBlack
-	// outputsView.Autoscroll = true
 	outputsView.Editable = false
 	outputsView.Wrap = false
 
@@ -204,7 +205,7 @@ func main() {
 	helpView.SelFgColor = gocui.ColorYellow
 	helpView.Editable = false
 	helpView.Wrap = false
-	fmt.Fprint(helpView, " CTRL+H [Display Help] - CTRL+N [Get New Maze] - CTRL+Q [Close Maze] - CTRL+C [Exit Game]")
+	fmt.Fprint(helpView, " F1 or CTRL+D [Display Help] - CTRL+N [Get New Maze] - CTRL+C [Exit Game]")
 
 	// Apply keybindings to program.
 	if err = keybindings(g); err != nil {
@@ -293,13 +294,29 @@ func keybindings(g *gocui.Gui) error {
 		return err
 	}
 
-	// display help details.
-	if err := g.SetKeybinding("", gocui.KeyCtrlH, gocui.ModNone, displayHelpView); err != nil {
+	// to display help details. We use Ctrl+I or F1.
+	// On unix-like platforms, we can also use Ctrl+H.
+	if runtime.GOOS != "windows" {
+		if err := g.SetKeybinding("", gocui.KeyCtrlH, gocui.ModNone, displayHelpView); err != nil {
+			return err
+		}
+	}
+
+	if err := g.SetKeybinding("", gocui.KeyF1, gocui.ModNone, displayHelpView); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("", gocui.KeyCtrlD, gocui.ModNone, displayHelpView); err != nil {
 		return err
 	}
 
 	// generate & display new maze when focus on outputs (maze zone).
 	if err := g.SetKeybinding(OUTPUTS, gocui.KeyCtrlN, gocui.ModNone, displayNewMaze); err != nil {
+		return err
+	}
+
+	// edit current default maze settings (width and height).
+	if err := g.SetKeybinding(OUTPUTS, gocui.KeyCtrlE, gocui.ModNone, editMazeSize); err != nil {
 		return err
 	}
 
@@ -311,8 +328,8 @@ func displayNewMaze(g *gocui.Gui, v *gocui.View) error {
 
 	xLines, yLines := v.Size()
 
-	if MAZEWIDTH >= xLines {
-		MAZEWIDTH = xLines - 2
+	if 2*MAZEWIDTH >= xLines {
+		MAZEWIDTH = (xLines - 2) / 2
 	}
 
 	if MAZEHEIGHT >= yLines {
@@ -478,6 +495,7 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 
 	mazeView.Frame = false
 	mazeView.FgColor = gocui.ColorYellow
+	mazeView.BgColor = gocui.ColorBlack
 	mazeView.SelBgColor = gocui.ColorBlack
 	mazeView.SelFgColor = gocui.ColorYellow
 	//inputView.Editable = true
@@ -918,14 +936,26 @@ func displayHelpView(g *gocui.Gui, cv *gocui.View) error {
 		g.Cursor = false
 		helpView.Highlight = true
 
-		// bind Ctrl+Q and Escape keys to close the input box.
+		// bind Ctrl+Q and Escape and Ctrl+H and F1 and Ctrl+D keys to close the input box.
 		if err := g.SetKeybinding(HELP, gocui.KeyCtrlQ, gocui.ModNone, closeHelpView); err != nil {
 			log.Println("Failed to bind keys (CtrlQ) to help view:", err)
 			return err
 		}
 
-		if err := g.SetKeybinding(HELP, gocui.KeyCtrlH, gocui.ModNone, closeHelpView); err != nil {
-			log.Println("Failed to bind keys (CtrlH) to help view:", err)
+		if runtime.GOOS != "windows" {
+			if err := g.SetKeybinding(HELP, gocui.KeyCtrlH, gocui.ModNone, closeHelpView); err != nil {
+				log.Println("Failed to bind keys (CtrlH) to help view:", err)
+				return err
+			}
+		}
+
+		if err := g.SetKeybinding(HELP, gocui.KeyCtrlD, gocui.ModNone, closeHelpView); err != nil {
+			log.Println("Failed to bind keys (CtrlD) to close help view:", err)
+			return err
+		}
+
+		if err := g.SetKeybinding(HELP, gocui.KeyF1, gocui.ModNone, closeHelpView); err != nil {
+			log.Println("Failed to bind keys (F1) to help view:", err)
 			return err
 		}
 
@@ -972,4 +1002,131 @@ func closeHelpView(g *gocui.Gui, hv *gocui.View) error {
 	}
 
 	return nil
+}
+
+// editMazeSize provides a temporary input box to type wanted maze size (width & height).
+func editMazeSize(g *gocui.Gui, cv *gocui.View) error {
+	maxX, maxY := g.Size()
+	const name = "MazeSizeView"
+
+	inputView, err := g.SetView(name, maxX/2-20, maxY/2, maxX/2+20, maxY/2+2)
+	if err != nil && err != gocui.ErrUnknownView {
+		log.Println("Failed to display maze size input view:", err)
+		return err
+	}
+
+	inputView.Title = " Edit Maze Size (width x height) "
+	//inputView.Frame = true
+	inputView.FgColor = gocui.ColorYellow
+	inputView.SelBgColor = gocui.ColorBlack
+	inputView.SelFgColor = gocui.ColorYellow
+	inputView.Editable = true
+
+	if _, err = g.SetCurrentView(name); err != nil {
+		log.Println("Failed to set focus on maze size input view:", err)
+		return err
+	}
+
+	g.Cursor = true
+	inputView.Highlight = true
+
+	if err = g.SetKeybinding(name, gocui.KeyEnter, gocui.ModNone, copyMazeSizeInput); err != nil {
+		log.Println("Failed to bind Enter key to maze size input view:", err)
+		return err
+	}
+
+	// Ctrl+Q and Escape keys to close the input box.
+	if err = g.SetKeybinding(name, gocui.KeyCtrlQ, gocui.ModNone, closeMazeSizeInputView); err != nil {
+		log.Println("Failed to bind CtrlQ key to maze size input view:", err)
+		return err
+	}
+
+	if err = g.SetKeybinding(name, gocui.KeyEsc, gocui.ModNone, closeMazeSizeInputView); err != nil {
+		log.Println("Failed to bind Esc key to maze size input view:", err)
+		return err
+	}
+
+	_, _ = g.SetViewOnTop(name)
+
+	fmt.Fprintf(inputView, "%d x %d", MAZEWIDTH, MAZEHEIGHT)
+	inputView.SetCursor(len(fmt.Sprintf("%d x %d", MAZEWIDTH, MAZEHEIGHT)), 0)
+
+	return nil
+}
+
+// closeMazeSizeInputView closes current temporary maze view.
+func closeMazeSizeInputView(g *gocui.Gui, iv *gocui.View) error {
+
+	iv.Clear()
+	g.Cursor = false
+	g.DeleteKeybindings(iv.Name())
+	if err := g.DeleteView(iv.Name()); err != nil {
+		log.Println("Failed to delete maze size input view:", err)
+		return err
+	}
+
+	_ = setFocusOnView(g, OUTPUTS)
+
+	return nil
+}
+
+// copyMazeSizeInput processes the value entered and set default maze size.
+func copyMazeSizeInput(g *gocui.Gui, iv *gocui.View) error {
+	var err error
+	var ov *gocui.View
+
+	iv.Rewind()
+	ov, err = g.View(OUTPUTS)
+	if err == gocui.ErrUnknownView {
+		log.Println("Failed to get outputs view:", err)
+	}
+
+	input := strings.TrimSpace(iv.Buffer())
+
+	if input != "" {
+		// data typed, add it.
+		setupMazeSize(input)
+
+	} else {
+		// no data entered, so go back.
+		editMazeSize(g, ov)
+		return nil
+	}
+
+	iv.Clear()
+
+	// must delete keybindings before the view, or fatal error.
+	g.DeleteKeybindings(iv.Name())
+	if err = g.DeleteView(iv.Name()); err != nil {
+		log.Println("Failed to delete maze size input view:", err)
+		return err
+	}
+
+	_ = setFocusOnView(g, OUTPUTS)
+
+	return nil
+}
+
+// setupMazeSize configures default maze size.
+// expect to receive <width x height> format.
+func setupMazeSize(size string) {
+	s := strings.Split(size, "x")
+	if len(s) != 2 {
+		log.Println("Failed to setup maze size because no valid input data")
+		return
+	}
+
+	w, err := strconv.Atoi(strings.TrimSpace(s[0]))
+	if err != nil {
+		log.Println("Failed to setup maze width size because no valid input data")
+	} else if w > 15 {
+		MAZEWIDTH = w
+	}
+
+	h, err := strconv.Atoi(strings.TrimSpace(s[1]))
+	if err != nil {
+		log.Println("Failed to setup maze height size because no valid input data")
+	} else if h > 10 {
+		MAZEHEIGHT = h
+	}
 }
