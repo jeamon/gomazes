@@ -10,6 +10,7 @@ Have fun time with kids and family and friends at playing awesome 2D maze-based 
 
 * define the default size (width & height) of the maze
 * auto adjust the provided maze size based on screen size
+* use keyboard (CTRL+E) to edit default maze size (w x h) 
 * use keyboard (CTRL+N) to generate new maze at any time
 * use keyboard (CTRL+Q) to cancel current displayed maze
 * use keyboard (CTRL+R) to go back to the initial position
@@ -18,12 +19,13 @@ Have fun time with kids and family and friends at playing awesome 2D maze-based 
 * use keyboard (CTRL+S) to save the current maze challenge
 * use keyboard (CTRL+L) to load any past saved maze challenge
 * use keyboard (CTRL+C) to close immediately the whole game
-* use keyboard (CTRL+H) to display or close the help details
+* use keyboard (CTRL+D) to display or close the help details
 * timer to view the time elapsed since the maze get displayed
 * view in real-time the exact coordinates of your position
 * view in real-time the game status (pause or ready or loading)
 * replay the same maze by moving back the cursor to entrance
 * use keyboard (ESC) to quit the maze and SPACE to pause/resume
+* auto pause the game when help is displayed (via F1 or CTRL+D)
 
 
 ## Demo
