@@ -26,12 +26,14 @@ const (
 	POSITION = "position"
 	TIMER    = "timer"
 	STATUS   = "status"
+	SIZE     = "size"
 	HELP     = "help"
 	MAZE     = "maze"
 
 	TWIDTH  = 11
 	PWIDTH  = 30
 	SWIDTH  = 45
+	SZWIDTH = 58
 	HWIDTH  = 44
 	HHEIGHT = 28
 )
@@ -193,8 +195,22 @@ func main() {
 	statusView.Editable = false
 	statusView.Wrap = false
 
+	// Size view.
+	sizeView, err := g.SetView(SIZE, SWIDTH+1, maxY-3, SZWIDTH, maxY-1)
+	if err != nil && err != gocui.ErrUnknownView {
+		log.Println("Failed to create maze size view:", err)
+		return
+	}
+	sizeView.Title = " Size "
+	sizeView.FgColor = gocui.ColorGreen
+	sizeView.SelBgColor = gocui.ColorBlack
+	sizeView.SelFgColor = gocui.ColorYellow
+	sizeView.Editable = false
+	sizeView.Wrap = false
+	fmt.Fprintf(sizeView, center(fmt.Sprintf("%d x %d", MAZEWIDTH, MAZEHEIGHT), SZWIDTH-SWIDTH-1, " "))
+
 	// Help view.
-	helpView, err := g.SetView(INFOS, SWIDTH+1, maxY-3, maxX-1, maxY-1)
+	helpView, err := g.SetView(INFOS, SZWIDTH+1, maxY-3, maxX-1, maxY-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		log.Println("Failed to create help view:", err)
 		return
@@ -266,8 +282,15 @@ func layout(g *gocui.Gui) error {
 		return err
 	}
 
+	// Maze Size view.
+	_, err = g.SetView(SIZE, SWIDTH+1, maxY-3, SZWIDTH, maxY-1)
+	if err != nil && err != gocui.ErrUnknownView {
+		log.Println("Failed to create maze size view:", err)
+		return err
+	}
+
 	// Help view.
-	_, err = g.SetView(INFOS, SWIDTH+1, maxY-3, maxX-1, maxY-1)
+	_, err = g.SetView(INFOS, SZWIDTH+1, maxY-3, maxX-1, maxY-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		log.Println("Failed to create help view:", err)
 		return err
@@ -1085,7 +1108,14 @@ func copyMazeSizeInput(g *gocui.Gui, iv *gocui.View) error {
 
 	if input != "" {
 		// data typed, add it.
-		setupMazeSize(input)
+		x, y := ov.Size()
+		setupMazeSize(input, x, y)
+		g.Update(func(g *gocui.Gui) error {
+			sizeView, _ := g.View(SIZE)
+			sizeView.Clear()
+			fmt.Fprintf(sizeView, center(fmt.Sprintf("%d x %d", MAZEWIDTH, MAZEHEIGHT), SZWIDTH-SWIDTH-1, " "))
+			return nil
+		})
 
 	} else {
 		// no data entered, so go back.
@@ -1109,7 +1139,7 @@ func copyMazeSizeInput(g *gocui.Gui, iv *gocui.View) error {
 
 // setupMazeSize configures default maze size.
 // expect to receive <width x height> format.
-func setupMazeSize(size string) {
+func setupMazeSize(size string, x, y int) {
 	s := strings.Split(size, "x")
 	if len(s) != 2 {
 		log.Println("Failed to setup maze size because no valid input data")
@@ -1128,5 +1158,14 @@ func setupMazeSize(size string) {
 		log.Println("Failed to setup maze height size because no valid input data")
 	} else if h > 10 {
 		MAZEHEIGHT = h
+	}
+
+	// limit to the output size.
+	if 2*MAZEWIDTH >= x {
+		MAZEWIDTH = (x - 2) / 2
+	}
+
+	if MAZEHEIGHT >= y {
+		MAZEHEIGHT = y - 2
 	}
 }
