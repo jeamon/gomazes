@@ -233,6 +233,16 @@ func main() {
 		return
 	}
 
+	// adjust maze default size based on outputs view.
+	x, y := outputsView.Size()
+	if 2*MAZEWIDTH >= x {
+		MAZEWIDTH = (x - 2) / 2
+	}
+
+	if MAZEHEIGHT >= y {
+		MAZEHEIGHT = y - 2
+	}
+
 	wg.Add(1)
 	go updateTimerView(g)
 
@@ -243,8 +253,8 @@ func main() {
 	go updateStatusView(g)
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		// close(exit)
-		log.Println(err)
+		close(exit)
+		log.Println("Exited from the main loop:", err)
 	}
 
 	wg.Wait()
