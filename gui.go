@@ -209,19 +209,18 @@ func main() {
 	sizeView.Wrap = false
 	fmt.Fprintf(sizeView, center(fmt.Sprintf("%d x %d", MAZEWIDTH, MAZEHEIGHT), SZWIDTH-SWIDTH-1, " "))
 
-	// Help view.
-	helpView, err := g.SetView(INFOS, SZWIDTH+1, maxY-3, maxX-1, maxY-1)
+	// Infos view.
+	infosView, err := g.SetView(INFOS, SZWIDTH+1, maxY-3, maxX-1, maxY-1)
 	if err != nil && err != gocui.ErrUnknownView {
 		log.Println("Failed to create help view:", err)
 		return
 	}
-	helpView.Title = " Infos "
-	helpView.FgColor = gocui.ColorWhite
-	helpView.SelBgColor = gocui.ColorBlack
-	helpView.SelFgColor = gocui.ColorYellow
-	helpView.Editable = false
-	helpView.Wrap = false
-	fmt.Fprint(helpView, " F1 or CTRL+D [Display Help] - CTRL+N [Get New Maze] - CTRL+C [Exit Game]")
+	infosView.FgColor = gocui.ColorWhite
+	infosView.SelBgColor = gocui.ColorBlack
+	infosView.SelFgColor = gocui.ColorYellow
+	infosView.Editable = false
+	infosView.Wrap = false
+	fmt.Fprint(infosView, center("F1 or CTRL+D [Display Help] - CTRL+N [Play New Maze] - CTRL+C [Exit Game]", maxX-SZWIDTH-2, " "))
 
 	// Apply keybindings to program.
 	if err = keybindings(g); err != nil {
@@ -292,7 +291,7 @@ func layout(g *gocui.Gui) error {
 	// Help view.
 	_, err = g.SetView(INFOS, SZWIDTH+1, maxY-3, maxX-1, maxY-1)
 	if err != nil && err != gocui.ErrUnknownView {
-		log.Println("Failed to create help view:", err)
+		log.Println("Failed to create infos view:", err)
 		return err
 	}
 
