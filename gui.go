@@ -332,7 +332,7 @@ func keybindings(g *gocui.Gui) error {
 		return err
 	}
 
-	// to display help details. We use Ctrl+I or F1.
+	// to display help details. We use Ctrl+D or F1.
 	// On unix-like platforms, we can also use Ctrl+H.
 	if runtime.GOOS != "windows" {
 		if err := g.SetKeybinding("", gocui.KeyCtrlH, gocui.ModNone, displayHelpView); err != nil {
@@ -355,6 +355,15 @@ func keybindings(g *gocui.Gui) error {
 
 	// edit current default maze settings (width and height).
 	if err := g.SetKeybinding(OUTPUTS, gocui.KeyCtrlE, gocui.ModNone, editMazeSize); err != nil {
+		return err
+	}
+
+	// when focused on outputs view, display help at H or h key press.
+	if err := g.SetKeybinding(OUTPUTS, 'H', gocui.ModNone, displayHelpView); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding(OUTPUTS, 'h', gocui.ModNone, displayHelpView); err != nil {
 		return err
 	}
 
@@ -999,6 +1008,16 @@ func displayHelpView(g *gocui.Gui, cv *gocui.View) error {
 
 		if err := g.SetKeybinding(HELP, gocui.KeyEsc, gocui.ModNone, closeHelpView); err != nil {
 			log.Println("Failed to bind keys (Esc) to help view:", err)
+			return err
+		}
+
+		if err := g.SetKeybinding(HELP, 'H', gocui.ModNone, closeHelpView); err != nil {
+			log.Println("Failed to bind keys (H) to help view:", err)
+			return err
+		}
+
+		if err := g.SetKeybinding(HELP, 'h', gocui.ModNone, closeHelpView); err != nil {
+			log.Println("Failed to bind keys (H) to help view:", err)
 			return err
 		}
 
