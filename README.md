@@ -74,6 +74,5 @@ Please check & read [the license details](https://github.com/jeamon/gomazes/blob
 
 
 ## Contact
----
 
 Feel free to [reach out to me](https://blog.cloudmentor-scale.com/contact) before any action. Feel free to connect on [Twitter](https://twitter.com/jerome_amon) or [linkedin](https://www.linkedin.com/in/jeromeamon/)

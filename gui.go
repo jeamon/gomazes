@@ -967,7 +967,7 @@ func displayHelpView(g *gocui.Gui, cv *gocui.View) error {
 			log.Println("Failed to create help view:", err)
 			return err
 		}
-		// helpView.Title = " Help "
+
 		helpView.FgColor = gocui.ColorGreen
 		helpView.SelBgColor = gocui.ColorBlack
 		helpView.SelFgColor = gocui.ColorYellow
@@ -981,7 +981,6 @@ func displayHelpView(g *gocui.Gui, cv *gocui.View) error {
 			return err
 		}
 		g.Cursor = false
-		helpView.Highlight = true
 
 		// bind Ctrl+Q and Escape and Ctrl+H and F1 and Ctrl+D keys to close the input box.
 		if err := g.SetKeybinding(HELP, gocui.KeyCtrlQ, gocui.ModNone, closeHelpView); err != nil {
@@ -1073,7 +1072,7 @@ func editMazeSize(g *gocui.Gui, cv *gocui.View) error {
 	}
 
 	inputView.Title = " Edit Maze Size (width x height) "
-	//inputView.Frame = true
+	inputView.Frame = true
 	inputView.FgColor = gocui.ColorYellow
 	inputView.SelBgColor = gocui.ColorBlack
 	inputView.SelFgColor = gocui.ColorYellow
