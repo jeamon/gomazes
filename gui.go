@@ -8,6 +8,7 @@ package main
 // Created  : 22 November 2021
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -90,6 +91,10 @@ var (
 
 	// keep latest coordinates of the cursor in maze.
 	latestMazeCursorX, latestMazeCursorY int
+
+	// store formatted current maze infos.
+	currentMazeData strings.Builder
+	currentMazeID   string
 )
 
 func main() {
@@ -230,7 +235,8 @@ func main() {
 
 	// Apply keybindings to program.
 	if err = keybindings(g); err != nil {
-		log.Panicln(err)
+		log.Println("Failed to setup keybindings:", err)
+		return
 	}
 
 	// move the focus on the jobs list box.
@@ -383,18 +389,18 @@ func displayNewMaze(g *gocui.Gui, v *gocui.View) error {
 		MAZEHEIGHT = yLines - 2
 	}
 
+	currentMazeData.Reset()
 	maze := createMaze(MAZEWIDTH, MAZEHEIGHT)
-	formatMaze := formatMaze(maze, MAZEWIDTH, MAZEHEIGHT)
+	currentMazeData = formatMaze(maze, MAZEWIDTH, MAZEHEIGHT)
 	maze = nil
 
 	v.Clear()
 
-	if err := createMazeView(g, v, formatMaze); err != nil {
+	if err := createMazeView(g, v); err != nil {
 		log.Println("Failed to create & display new maze:", err)
 		return err
 	}
 
-	formatMaze.Reset()
 	// reset and start timer.
 	resetTimer <- struct{}{}
 	stopTimer <- struct{}{}
@@ -524,7 +530,7 @@ func updateStatusView(g *gocui.Gui) {
 }
 
 // createMazeView displays a temporary box to contain the new generated maze.
-func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
+func createMazeView(g *gocui.Gui, v *gocui.View) error {
 
 	vx, vy := v.Size()
 	// maze view starting coordinates.
@@ -545,7 +551,6 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 	mazeView.BgColor = gocui.ColorBlack
 	mazeView.SelBgColor = gocui.ColorBlack
 	mazeView.SelFgColor = gocui.ColorYellow
-	//inputView.Editable = true
 
 	if _, err = g.SetCurrentView(MAZE); err != nil {
 		log.Println("Failed to set focus on maze view:", err)
@@ -560,8 +565,7 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 	}
 
 	// draw maze.
-	fmt.Fprint(mazeView, data.String())
-	data.Reset()
+	fmt.Fprint(mazeView, currentMazeData.String())
 
 	// move cursor to maze entrance.
 	x, _ := mazeView.Size()
@@ -579,6 +583,10 @@ func createMazeView(g *gocui.Gui, v *gocui.View, data strings.Builder) error {
 	statusGame <- 0
 	cx, cy := v.Cursor()
 	cursorPosition <- fmt.Sprintf("(X:%d | Y:%d)", cx, cy)
+
+	t := time.Now()
+	currentMazeID = fmt.Sprintf("%02d-%02d-%02d %02d-%02d-%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+
 	return nil
 }
 
@@ -622,6 +630,35 @@ func mazeKeybindings(g *gocui.Gui, name string) error {
 		return err
 	}
 
+	if err = g.SetKeybinding(name, gocui.KeyCtrlS, gocui.ModNone, saveGame); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// saveGame saves current maze on file disk inside savedsessions folder.
+func saveGame(g *gocui.Gui, mv *gocui.View) error {
+
+	if _, err := os.Stat("savedsessions"); errors.Is(err, os.ErrNotExist) {
+		// folder does not exist. we create it.
+		if err := os.Mkdir("savedsessions", 0755); err != nil {
+			log.Println("Failed to create savedsessions folder:", err)
+			return nil
+		}
+	}
+
+	fpath := "savedsessions" + string(os.PathSeparator) + currentMazeID
+	file, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Println("Failed to create savedsessions file:", err)
+		return nil
+	}
+	defer file.Close()
+
+	fmt.Fprintln(file, latestMazeCursorX, latestMazeCursorY)
+	fmt.Fprintln(file, currentMazeData.String())
+
 	return nil
 }
 
@@ -644,6 +681,10 @@ func closeMazeView(g *gocui.Gui, mv *gocui.View) error {
 	stopTimer <- struct{}{}
 	isGamePaused = false
 	statusGame <- 2
+
+	// clean stored maze data.
+	currentMazeData.Reset()
+	currentMazeID = ""
 
 	return nil
 }
