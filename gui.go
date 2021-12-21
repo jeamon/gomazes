@@ -38,6 +38,8 @@ const (
 	SZWIDTH = 58
 	HWIDTH  = 44
 	HHEIGHT = 28
+
+	SAVING_INTERVAL_SECS = 15
 )
 
 const helpDetails = `
@@ -95,6 +97,8 @@ var (
 	// store formatted current maze infos.
 	currentMazeData strings.Builder
 	currentMazeID   string
+	// used to throttle saving actions.
+	lastestSavingTime time.Time
 )
 
 func main() {
@@ -644,6 +648,11 @@ func mazeKeybindings(g *gocui.Gui, name string) error {
 // contains the latest cursor coordinates (x, y) followed by the maze data.
 func saveGame(g *gocui.Gui, mv *gocui.View) error {
 
+	// throttle saving action. could be done each <SAVING_INTERVAL_SECS>.
+	if (time.Since(lastestSavingTime)).Seconds() < SAVING_INTERVAL_SECS {
+		return nil
+	}
+
 	if _, err := os.Stat("savedsessions"); errors.Is(err, os.ErrNotExist) {
 		// folder does not exist. we create it.
 		if err := os.Mkdir("savedsessions", 0755); err != nil {
@@ -672,6 +681,8 @@ func saveGame(g *gocui.Gui, mv *gocui.View) error {
 		log.Println("Failed to save maze data in session file:", err)
 		return nil
 	}
+
+	lastestSavingTime = time.Now()
 
 	return nil
 }
