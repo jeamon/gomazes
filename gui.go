@@ -390,6 +390,7 @@ func displayNewMaze(g *gocui.Gui, v *gocui.View) error {
 	}
 
 	currentMazeData.Reset()
+	currentMazeID = ""
 	maze := createMaze(MAZEWIDTH, MAZEHEIGHT)
 	currentMazeData = formatMaze(maze, MAZEWIDTH, MAZEHEIGHT)
 	maze = nil
@@ -638,6 +639,9 @@ func mazeKeybindings(g *gocui.Gui, name string) error {
 }
 
 // saveGame saves current maze on file disk inside savedsessions folder.
+// It generates (if not already created) a dedicated file named with the
+// current maze session id <currentMazeID>. The first line inside the file
+// contains the latest cursor coordinates (x, y) followed by the maze data.
 func saveGame(g *gocui.Gui, mv *gocui.View) error {
 
 	if _, err := os.Stat("savedsessions"); errors.Is(err, os.ErrNotExist) {
@@ -656,8 +660,18 @@ func saveGame(g *gocui.Gui, mv *gocui.View) error {
 	}
 	defer file.Close()
 
-	fmt.Fprintln(file, latestMazeCursorX, latestMazeCursorY)
-	fmt.Fprintln(file, currentMazeData.String())
+	cx, cy := mv.Cursor()
+
+	_, err = fmt.Fprintln(file, cx, cy)
+	if err != nil {
+		log.Println("Failed to save cursor position in session file:", err)
+		return nil
+	}
+	_, err = fmt.Fprint(file, currentMazeData.String())
+	if err != nil {
+		log.Println("Failed to save maze data in session file:", err)
+		return nil
+	}
 
 	return nil
 }
