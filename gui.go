@@ -416,6 +416,10 @@ func displayExistingMaze(g *gocui.Gui, v *gocui.View) error {
 	const name = "listview"
 	maxX, maxY := g.Size()
 
+	if (H + 4) >= maxY {
+		H = maxY - 4
+	}
+
 	listView, err := g.SetView(name, (maxX-21)/2, (maxY-H)/2, maxX/2+21, (maxY+H)/2)
 	if err != nil && err != gocui.ErrUnknownView {
 		log.Println("Failed to display saved sessions listview:", err)
