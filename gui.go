@@ -8,8 +8,10 @@ package main
 // Created  : 22 November 2021
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -377,6 +379,245 @@ func keybindings(g *gocui.Gui) error {
 		return err
 	}
 
+	// display all previous saved sessions to load one of them as new maze game.
+	if err := g.SetKeybinding(OUTPUTS, gocui.KeyCtrlL, gocui.ModNone, displayExistingMaze); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// displayExistingMaze displays all saved maze sessions as a list
+// and allows to choose one to be loaded for replaying.
+func displayExistingMaze(g *gocui.Gui, v *gocui.View) error {
+
+	if _, err := os.Stat("savedsessions"); errors.Is(err, os.ErrNotExist) {
+		log.Println("There is no saved maze sessions. No folder <savedsessions>")
+		return nil
+	}
+
+	folder, err := os.Open("savedsessions")
+	if err != nil {
+		return err
+	}
+	defer folder.Close()
+	filenames, err := folder.Readdirnames(0)
+	if err != nil {
+		return err
+	}
+
+	if len(filenames) == 0 {
+		return nil
+	}
+
+	H := len(filenames) + 1
+
+	// constructs the listview.
+	const name = "listview"
+	maxX, maxY := g.Size()
+
+	listView, err := g.SetView(name, (maxX-21)/2, (maxY-H)/2, maxX/2+21, (maxY+H)/2)
+	if err != nil && err != gocui.ErrUnknownView {
+		log.Println("Failed to display saved sessions listview:", err)
+		return err
+	}
+
+	listView.Title = " Select A Session To Replay "
+	listView.Frame = true
+	listView.FgColor = gocui.ColorYellow
+	listView.SelBgColor = gocui.ColorGreen
+	listView.SelFgColor = gocui.ColorBlack
+	listView.Editable = false
+
+	if _, err = g.SetCurrentView(name); err != nil {
+		log.Println("Failed to set focus on maze sessions listview:", err)
+		return err
+	}
+
+	g.Cursor = true
+	listView.Highlight = true
+
+	if err = g.SetKeybinding(name, gocui.KeyArrowUp, gocui.ModNone, sessionCursorUp); err != nil {
+		log.Println("Failed to bind Arrow Up key to sessions listview:", err)
+		return err
+	}
+
+	if err = g.SetKeybinding(name, gocui.KeyArrowDown, gocui.ModNone, sessionCursorDown); err != nil {
+		log.Println("Failed to bind Arrow Down key to sessions listview:", err)
+		return err
+	}
+
+	if err = g.SetKeybinding(name, gocui.KeyEnter, gocui.ModNone, processEnterOnListView); err != nil {
+		log.Println("Failed to bind Enter key to sessions listview:", err)
+		return err
+	}
+
+	// Ctrl+Q and Escape keys to close the input box.
+	if err = g.SetKeybinding(name, gocui.KeyCtrlQ, gocui.ModNone, closeListView); err != nil {
+		log.Println("Failed to bind CtrlQ key to maze sessions listview:", err)
+		return err
+	}
+
+	if err = g.SetKeybinding(name, gocui.KeyEsc, gocui.ModNone, closeListView); err != nil {
+		log.Println("Failed to bind Esc key to maze sessions listview:", err)
+		return err
+	}
+
+	_, _ = g.SetViewOnTop(name)
+	listView.SetCursor(0, 0)
+
+	for _, filename := range filenames {
+		fmt.Fprint(listView, " "+strings.ReplaceAll(filename, ".", ":")+" "+"\n")
+	}
+
+	return nil
+}
+
+// ipsLineBelow returns true if there is data at position y+1.
+func lvLineBelow(v *gocui.View) bool {
+	_, cy := v.Cursor()
+	if l, _ := v.Line(cy + 1); l != "" {
+		return true
+	}
+	return false
+}
+
+// sessionCursorDown moves cursor to (currentY + 1) position if there is data there.
+func sessionCursorDown(g *gocui.Gui, lv *gocui.View) error {
+	if lv != nil && lvLineBelow(lv) == true {
+		lv.MoveCursor(0, 1, false)
+	}
+
+	return nil
+}
+
+// lvLineAbove returns true if there is data at position y-1.
+func lvLineAbove(v *gocui.View) bool {
+	_, cy := v.Cursor()
+	if l, _ := v.Line(cy - 1); l != "" {
+		return true
+	}
+	return false
+}
+
+// sessionCursorUp moves cursor to (currentY - 1) position if there is data there.
+func sessionCursorUp(g *gocui.Gui, lv *gocui.View) error {
+	if lv != nil && lvLineAbove(lv) == true {
+		lv.MoveCursor(0, -1, false)
+	}
+
+	return nil
+}
+
+// closeListView closes temporary maze sessions listview.
+func closeListView(g *gocui.Gui, lv *gocui.View) error {
+
+	lv.Clear()
+	g.Cursor = false
+	g.DeleteKeybindings(lv.Name())
+	if err := g.DeleteView(lv.Name()); err != nil {
+		log.Println("Failed to delete maze sessions listview:", err)
+		return err
+	}
+
+	_ = setFocusOnView(g, OUTPUTS)
+
+	return nil
+}
+
+// loadMazeData reads the backup maze file content then
+// extracts the saved cursor position followed by the
+// maze data.
+func loadMazeData(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+	data, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+
+	data = strings.TrimSpace(data)
+	xy := strings.Fields(data)
+	if len(xy) != 2 {
+		return errors.New("wrong coordinates values")
+	}
+
+	if x, err := strconv.Atoi(xy[0]); err != nil {
+		return errors.New("wrong X coordinates value")
+	} else {
+		latestMazeCursorX = x
+	}
+
+	if y, err := strconv.Atoi(xy[1]); err != nil {
+		return errors.New("wrong Y coordinates value")
+	} else {
+		latestMazeCursorY = y
+	}
+
+	for {
+		data, err = reader.ReadString('\n')
+		currentMazeData.WriteString(data)
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// processEnterOnListView allows to choose an existing saved maze for playing.
+func processEnterOnListView(g *gocui.Gui, lv *gocui.View) error {
+
+	_, cy := lv.Cursor()
+	session, err := lv.Line(cy)
+	if err != nil {
+		log.Println("Failed to read current focused session name:", err)
+		return nil
+	}
+	session = strings.ReplaceAll(strings.TrimSpace(session), ":", ".")
+	// should not happen but for safety.
+	if len(session) == 0 {
+		return nil
+	}
+
+	if err := closeListView(g, lv); err != nil {
+		return err
+	}
+
+	currentMazeData.Reset()
+	currentMazeID = ""
+
+	if err := loadMazeData("savedsessions" + string(os.PathSeparator) + session); err != nil {
+		log.Println("Failed to load existing maze data:", err)
+		return err
+	}
+
+	// expected to be OUTPTUS view.
+	ov := g.CurrentView()
+	ov.Clear()
+
+	if err := createMazeView(g, ov); err != nil {
+		log.Println("Failed to load & display existing maze:", err)
+		return err
+	}
+
+	if mv := g.CurrentView(); mv != nil {
+		mv.SetCursor(latestMazeCursorX, latestMazeCursorY)
+		cursorPosition <- fmt.Sprintf("(X:%d | Y:%d)", latestMazeCursorX, latestMazeCursorY)
+	}
+
+	currentMazeID = session
+
+	// reset and start timer.
+	resetTimer <- struct{}{}
+	stopTimer <- struct{}{}
 	return nil
 }
 
@@ -395,6 +636,7 @@ func displayNewMaze(g *gocui.Gui, v *gocui.View) error {
 
 	currentMazeData.Reset()
 	currentMazeID = ""
+	lastestSavingTime = time.Time{}
 	maze := createMaze(MAZEWIDTH, MAZEHEIGHT)
 	currentMazeData = formatMaze(maze, MAZEWIDTH, MAZEHEIGHT)
 	maze = nil
@@ -590,7 +832,7 @@ func createMazeView(g *gocui.Gui, v *gocui.View) error {
 	cursorPosition <- fmt.Sprintf("(X:%d | Y:%d)", cx, cy)
 
 	t := time.Now()
-	currentMazeID = fmt.Sprintf("%02d-%02d-%02d %02d-%02d-%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
+	currentMazeID = fmt.Sprintf("%02d-%02d-%02d %02dH.%02dM.%02dS", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 
 	return nil
 }
