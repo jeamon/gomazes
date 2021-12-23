@@ -469,47 +469,32 @@ func displayExistingMaze(g *gocui.Gui, v *gocui.View) error {
 
 	_, _ = g.SetViewOnTop(name)
 	listView.SetCursor(0, 0)
+	g.Cursor = false
 
-	for _, filename := range filenames {
-		fmt.Fprint(listView, " "+strings.ReplaceAll(filename, ".", ":")+" "+"\n")
+	for i, filename := range filenames {
+		fmt.Fprint(listView, fmt.Sprintf(" [%02d] %s \n", i+1, strings.ReplaceAll(filename, ".", ":")))
 	}
 
 	return nil
-}
-
-// ipsLineBelow returns true if there is data at position y+1.
-func lvLineBelow(v *gocui.View) bool {
-	_, cy := v.Cursor()
-	if l, _ := v.Line(cy + 1); l != "" {
-		return true
-	}
-	return false
 }
 
 // sessionCursorDown moves cursor to (currentY + 1) position if there is data there.
 func sessionCursorDown(g *gocui.Gui, lv *gocui.View) error {
-	if lv != nil && lvLineBelow(lv) == true {
+	_, cy := lv.Cursor()
+	if l, _ := lv.Line(cy + 1); l != "" {
 		lv.MoveCursor(0, 1, false)
 	}
-
 	return nil
 }
 
-// lvLineAbove returns true if there is data at position y-1.
-func lvLineAbove(v *gocui.View) bool {
-	_, cy := v.Cursor()
-	if l, _ := v.Line(cy - 1); l != "" {
-		return true
-	}
-	return false
-}
-
-// sessionCursorUp moves cursor to (currentY - 1) position if there is data there.
+// sessionCursorUp moves cursor to (currentY - 1) position if it is valid position.
 func sessionCursorUp(g *gocui.Gui, lv *gocui.View) error {
-	if lv != nil && lvLineAbove(lv) == true {
-		lv.MoveCursor(0, -1, false)
+	_, cy := lv.Cursor()
+	if cy-1 < 0 {
+		return nil
 	}
 
+	lv.MoveCursor(0, -1, false)
 	return nil
 }
 
@@ -586,12 +571,19 @@ func processEnterOnListView(g *gocui.Gui, lv *gocui.View) error {
 		return nil
 	}
 	session = strings.ReplaceAll(strings.TrimSpace(session), ":", ".")
+	if len(strings.SplitN(session, " ", 2)) != 2 {
+		log.Println("Cannot accept current focused session name since invalid.")
+		return nil
+	}
+	session = strings.SplitN(session, " ", 2)[1]
 	// should not happen but for safety.
 	if len(session) == 0 {
+		log.Println("Cannot accept current focused session name since empty.")
 		return nil
 	}
 
 	if err := closeListView(g, lv); err != nil {
+		log.Println("Failed to close sessions listview:", err)
 		return err
 	}
 
@@ -600,7 +592,8 @@ func processEnterOnListView(g *gocui.Gui, lv *gocui.View) error {
 
 	if err := loadMazeData("savedsessions" + string(os.PathSeparator) + session); err != nil {
 		log.Println("Failed to load existing maze data:", err)
-		return err
+		// we dont want to close the program because of an inexistent session file.
+		return nil
 	}
 
 	// expected to be OUTPTUS view.
