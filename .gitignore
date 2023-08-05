@@ -7,3 +7,9 @@
 # files during runtime
 *.log
 *.txt
+
+# some folders and files
+*.png
+*.ppt*
+savedsessions/
+gomazes-v*
